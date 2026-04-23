@@ -11,6 +11,7 @@ from aiohttp_socks import ProxyConnector
 
 from config import FLARESOLVERR_URL, FLARESOLVERR_TIMEOUT, get_proxy_for_url, TRANSPORT_ROUTES, GLOBAL_PROXIES, get_connector_for_proxy
 from utils.packed import eval_solver
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +80,9 @@ class MixdropExtractor:
 
     async def extract(self, url: str, **kwargs) -> dict:
         """Extract Mixdrop URL."""
-        # 1. Safego
-        if "safego.cc" in url:
-            url = await self._solve_safego(url)
+        # 1. Handle redirectors (safego.cc, clicka.cc, etc.)
+        if any(domain in url.lower() for domain in ["safego.cc", "clicka.cc", "clicka"]):
+            url = await self._solve_redirector(url)
 
         # 2. Normalize
         if "/f/" in url: url = url.replace("/f/", "/e/")
@@ -89,7 +90,7 @@ class MixdropExtractor:
         
         known_mirrors = ["mixdrop.co", "mixdrop.to", "mixdrop.ch", "mixdrop.ag", 
                          "mixdrop.gl", "mixdrop.club", "m1xdrop.net", "mixdrop.top", "mixdrop.nz",
-                         "mixdrop.vc", "mixdrop.sx", "mixdrop.bz", "mdy48tn97.com"]
+                         "mixdrop.vc", "mixdrop.sx", "mixdrop.bz", "mdy48tn97.com", "mixdrop.vip", "mixdrop.si"]
         
         mirror_found = False
         for mirror in known_mirrors:
@@ -135,8 +136,8 @@ class MixdropExtractor:
         except Exception as e:
             raise ExtractorError(f"Mixdrop extraction failed: {str(e)}") from e
 
-    async def _solve_safego(self, url: str) -> str:
-        """Solves safego.cc captcha using FS sessions."""
+    async def _solve_redirector(self, url: str) -> str:
+        """Solves safego.cc or clicka.cc redirectors using FS sessions."""
         session_id = None
         current_url = url
         try:
@@ -155,7 +156,6 @@ class MixdropExtractor:
             text = solution.get("response", "")
             current_url = solution.get("url", url)
 
-            from bs4 import BeautifulSoup
             soup = BeautifulSoup(text, "lxml")
             
             img_tag = soup.find("img", src=re.compile(r'data:image/png;base64,'))

@@ -1900,8 +1900,10 @@ class HLSProxy:
             extractor_kwargs['request_headers'] = dict(request.headers)
 
             bypass_warp = request.query.get("warp", "").lower() == "off"
+            logger.debug(f"Deltabit Debug: Initial bypass_warp from query: {bypass_warp}")
+            
             extractor = await self.get_extractor(
-                url, dict(request.headers), host=host_param
+                url, dict(request.headers), host=host_param, bypass_warp=bypass_warp
             )
             result = await extractor.extract(url, **extractor_kwargs)
 
@@ -1910,10 +1912,14 @@ class HLSProxy:
             mediaflow_endpoint = result.get("mediaflow_endpoint", "hls_proxy")
             force_disable_ssl = result.get("disable_ssl", False)
             
-            # Se l'estrattore forza il bypass di WARP (es. Deltabit)
-            if result.get("bypass_warp"):
-                bypass_warp = True
-
+            # Log dello stato dell'estrattore
+            logger.debug(f"Deltabit Debug: Extractor result bypass_warp: {result.get('bypass_warp')}")
+            
+            # Non forziamo più l'override qui, lasciamo che sia la scelta iniziale a comandare
+            # bypass_warp = bypass_warp (rimane quello definito all'inizio a riga 1902)
+            
+            logger.debug(f"Deltabit Debug: Final bypass_warp for redirect: {bypass_warp}")
+            
             logger.info(
                 f"✅ Extraction success: {stream_url[:50]}... Endpoint: {mediaflow_endpoint}"
             )
